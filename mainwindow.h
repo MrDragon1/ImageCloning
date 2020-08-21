@@ -58,9 +58,6 @@ public:
     bool PointinTriangle(vector2d,vector2d,vector2d,vector2d);
     void CalBoundPoint(std::vector<vector2d>& ROIBoundPointList,std::vector<vector2d>& ROI_);
     void RasterLine(std::pair<vector2d, vector2d> line, std::vector<vector2d>& linePointList);
-    bool IsIntersect(double px1, double py1, double px2, double py2, double px3, double py3, double px4, double py4);
-    bool IsPointOnLine(double px0, double py0, double px1, double py1, double px2, double py2);
-    bool Point_In_Polygon_2D(double x, double y, const std::vector<vector2d> &POL);
 
 private slots:
     void on_Info_btn_clicked();
