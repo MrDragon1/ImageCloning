@@ -22,7 +22,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-CONFIG += c++14
+CONFIG += c++16
 CONFIG += console
 
 INCLUDEPATH += G:\Opencv\install\include \
@@ -34,6 +34,7 @@ INCLUDEPATH += G:\Opencv\install\include \
 LIBS += -LG:\Opencv\install\x64\mingw\lib -llibopencv_core440 -llibopencv_imgproc440 -llibopencv_highgui440 -llibopencv_photo440 -llibopencv_imgcodecs440 \
         -LG:\CGAL\CGAL5.0.3\auxiliary\gmp\lib -llibgmp-10 \
         -LG:\CGAL\CGAL5.0.3\build\lib
+
 SOURCES += \
         info.cpp \
         main.cpp \

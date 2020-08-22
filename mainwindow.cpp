@@ -89,18 +89,14 @@ void MainWindow::mousePressEvent(QMouseEvent* event)
             endpoint = startpoint;
             line.push_back(cv::Point(endpoint.x(),endpoint.y()));
         }
-        else if(Moved)
-//                && event->pos().x() - ui->groupBox_2->pos().x()  >= ui->area_label->x()
-//                && event->pos().y() - ui->groupBox_2->pos().y() >= ui->area_label->y()
-//                && event->pos().x() - ui->groupBox_2->pos().x() <= ui->area_label->x() + ui->area_label->width()
-//                && event->pos().y() - ui->groupBox_2->pos().y() <= ui->area_label->y() + ui->area_label->height())
+        else if(Moved
+                && event->pos().x() - ui->groupBox_2->pos().x()  >= ui->area_label->x()
+                && event->pos().y() - ui->groupBox_2->pos().y() >= ui->area_label->y()
+                && event->pos().x() - ui->groupBox_2->pos().x() <= ui->area_label->x() + ui->area_label->width()
+                && event->pos().y() - ui->groupBox_2->pos().y() <= ui->area_label->y() + ui->area_label->height())
         {
-            relative_position = event->pos() - ui->groupBox_2->pos() - ui->area_label->pos();
-            if(map[relative_position.y()][relative_position.x()]){
-                Movearea = true;
-            }
-
-
+            relative_position = event->pos() - ui->groupBox_2->pos() - ui->area_label->pos();  
+            Movearea = true;
         }
     }
 }
@@ -187,7 +183,7 @@ void MainWindow::on_Set_btn_clicked()
     mask = Mat::zeros(src_mat.size(),CV_8UC3);
     polylines(mask,contours_ploy,true,cv::Scalar(0,0,0), 2, 8, 0);
     fillPoly(mask,contours_ploy,cv::Scalar(255,255,255), 8, 0);
-    imshow("mask",mask);
+    //imshow("mask",mask);
 
     //save area in map
     map.resize(mask.rows);
