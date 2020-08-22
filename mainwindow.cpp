@@ -218,6 +218,7 @@ void MainWindow::on_Set_btn_clicked()
     }
 
     //get roi
+    contours_ploy.push_back(contours_ploy[0]);
     vector<vector2d> ROIBoundList;
     for(auto i:contours_ploy)
     {
@@ -225,7 +226,10 @@ void MainWindow::on_Set_btn_clicked()
     }
     CalBoundPoint(ROI,ROIBoundList);
     cout<<"contours size == "<< contours_ploy.size()<<" ROI size == "<< ROI.size() << endl;
-
+//    for(cv::Point p:contours_ploy)
+//    {
+//        cout << p.x<<" , "<< p.y<<endl;
+//    }
     //show transparent img
     Moved = true;
     IsDraw = false;
@@ -353,8 +357,8 @@ void MainWindow::MVC_Compute()
                 for(unsigned int  k = 0;k < ROI.size();k++)
                 {
                     vector2d dot1 = ROI[k%ROI.size()],dot2 = ROI[(k+1)%ROI.size()] ,dot3 = ROI[(k-1)%ROI.size()];
-                    double tan1 = Tan_Compute(x,dot1,dot2);
-                    double tan2 = Tan_Compute(x,dot1,dot3);
+                    double tan1 = tan(Angle_Compute(x,dot1,dot2)/2);
+                    double tan2 = tan(Angle_Compute(x,dot1,dot3)/2);
                     //if(tan1+tan2 < 0) cout <<"tan < 0 =>"<<i<<","<< j <<" "<<tan1 << " "<< tan2 << " " <<endl;
                     w.push_back((tan1+tan2)/(x-dot1).Mod());
                     if(_isnan(w[k])==1)
@@ -425,11 +429,6 @@ void MainWindow::MVC_Compute_Optimized()
     QTime startTime = QTime::currentTime();
     QPoint area_tar_position = ui->area_label->pos() - QPoint(30,30) + QPoint(ui->scrollArea_2->horizontalScrollBar()->value(),ui->scrollArea_2->verticalScrollBar()->value());
 
-    //Step1:找到边界上所有的像素点
-//    vector<vector2d> ROIBoundPointList;
-//    CalBoundPoint(ROIBoundPointList);
-//    cout << "ROIBoundPointList size == "<<ROI.size()<<endl;
-
     CDT cdt;
     vector<Vertex_handle> vertexList;
     for(size_t i = 0; i<ROI.size(); i++)
@@ -448,74 +447,45 @@ void MainWindow::MVC_Compute_Optimized()
     CGAL::refine_Delaunay_mesh_2(cdt, Criteria());
     cout << "Number of vertices: " << cdt.number_of_vertices() <<endl;
 
+
+    Mat img = Mat::zeros(src_mat.size(),CV_8UC3);
+
     vector<vector2d> vertex_list;
     std::map<vector2d, size_t> vertex_map;
     for(CDT::Vertex_iterator vit = cdt.vertices_begin(); vit!= cdt.vertices_end(); ++vit)
     {
         vertex_map.insert(make_pair(vector2d(vit->point().x(), vit->point().y()), vertex_list.size()));
         vertex_list.push_back(vector2d(vit->point().x(), vit->point().y()));
+        img.at<Vec3b>(vit->point().y(),vit->point().x())[0] = 255;
+        img.at<Vec3b>(vit->point().y(),vit->point().x())[1] = 255;
+        img.at<Vec3b>(vit->point().y(),vit->point().x())[2] = 255;
     }
 
-    cout << "Calculating diff ..."<<endl;
-    //计算边界的像素差值
-    vector<int> diff;
-    for(size_t k = 0; k < ROI.size()-1; k++)
+    vector<vector<int>> newROI;
+    HierarchicalBoundarySampling(vertex_list,newROI);
+    cout << "newROI size == "<< newROI.size() <<endl;
+    for(int i = 0;i<newROI.size();i++)
     {
-        for(size_t bi = 0; bi < 3; bi++)
+        cout << "newROI["<< i <<"] size == "<< newROI[i].size() <<endl;
+        for(int j = 0;j<newROI[i].size();j++)
         {
-
-            int i = ROI[k].y,j = ROI[k].x;
-            int d = (int)(- src_mat.at<Vec3b>(i,j)[bi] + tar_mat.at<Vec3b>(i + area_tar_position.y(),j + area_tar_position.x())[bi]);
-            diff.push_back(d);
+            img.at<Vec3b>(ROI[newROI[i][j]].y,ROI[newROI[i][j]].x)[0] = 255;
+            img.at<Vec3b>(ROI[newROI[i][j]].y,ROI[newROI[i][j]].x)[1] = 255;
+            img.at<Vec3b>(ROI[newROI[i][j]].y,ROI[newROI[i][j]].x)[2] = 255;
         }
     }
-    cout << "Calculate diff done!"<<endl;
-    cout << "Calculating mean-value coordinates..." << endl;
-    vector<Vec3d> tri_mesh_vertex_R(vertex_list.size());
-    #pragma omp parallel for        //开启OpenMP并行加速
-    for (size_t vi = 0; vi < vertex_list.size(); ++vi)
+    vector<Point> contours_ploy;
+    for(int pos:newROI[50])
     {
-        //逐点计算MVC
-        vector<double> MVC(ROI.size()-1, 0);
-        for(size_t pi = 1; pi < ROI.size(); pi++)
-        {
-            double tan1 = Tan_Compute(vertex_list[vi], ROI[pi-1], ROI[pi]);
-            double tan2 = Tan_Compute(vertex_list[vi], ROI[pi-1], ROI[pi-2]);
-            double w_a = tan1 + tan2;
-            double w_b = (ROI[pi-1] - vertex_list[vi]).Mod();
-            MVC[pi-1] = w_a / w_b;
-            if(_isnan(MVC[pi-1])==1)
-            {
-                MVC[pi-1] = 0;
-            }
-        }
-
-        double sum = 0;
-        for(size_t pi = 0; pi < MVC.size(); pi++)
-        {
-            sum = sum + MVC[pi];
-        }
-
-        for(size_t pi = 0; pi < MVC.size(); pi++)
-        {
-            MVC[pi] = MVC[pi] / sum;
-        }
-
-        Vec3d r(0.0,0.0,0.0);
-        for(size_t pi = 0; pi < MVC.size(); pi++)
-        {
-            for(int bi = 0; bi < 3; bi++)
-            {
-                r[bi] = r[bi] + MVC[pi] * diff[pi * 3 + bi];
-            }
-        }
-
-        tri_mesh_vertex_R[vi] = r;
+        //cout <<ROI[pos].x << " " << ROI[pos].y<<endl;
+        contours_ploy.push_back(Point(ROI[pos].x,ROI[pos].y));
     }
-    cout<<"Calculate mean-value coordinates done!" << endl;
+    polylines(img,contours_ploy,true,cv::Scalar(255,0,0), 2, 8, 0);
+
+    imshow("vertex",img);
 
     cout << "Split triangle ..."<<endl;
-    //遍历每一个三角面
+
     vector<vector<size_t>> face_vertex_index;
     CDT::Face_iterator fit;
     for (fit = cdt.faces_begin(); fit!= cdt.faces_end(); ++fit)
@@ -565,6 +535,61 @@ void MainWindow::MVC_Compute_Optimized()
     }
 
     cout << "Split triangle done!"<<endl;
+
+    cout << "Calculating diff ..."<<endl;
+
+    vector<int> diff;
+    for(size_t k = 0; k < ROI.size()-1; k++)
+    {
+        for(size_t bi = 0; bi < 3; bi++)
+        {
+
+            int i = ROI[k].y,j = ROI[k].x;
+            int d = (int)(- src_mat.at<Vec3b>(i,j)[bi] + tar_mat.at<Vec3b>(i + area_tar_position.y(),j + area_tar_position.x())[bi]);
+            diff.push_back(d);
+        }
+    }
+    cout << "Calculate diff done!"<<endl;
+    cout << "Calculating mean-value coordinates..." << endl;
+    vector<Vec3d> tri_mesh_vertex_R(vertex_list.size());
+    #pragma omp parallel for        //开启OpenMP并行加速
+    for (size_t vi = 0; vi < vertex_list.size(); ++vi)
+    {
+        //逐点计算MVC
+        vector<double> MVC(ROI.size()-1, 0);
+        double sum = 0;
+        for(size_t pi = 1; pi < ROI.size(); pi++)
+        {
+            double tan1 = tan(Angle_Compute(vertex_list[vi], ROI[pi-1], ROI[pi])/2);
+            double tan2 = tan(Angle_Compute(vertex_list[vi], ROI[pi-1], ROI[pi-2])/2);
+            double w_a = tan1 + tan2;
+            double w_b = (ROI[pi-1] - vertex_list[vi]).Mod();
+            MVC[pi-1] = w_a / w_b;
+            if(_isnan(MVC[pi-1])==1)
+            {
+                MVC[pi-1] = 0;
+            }
+            sum += MVC[pi-1];
+        }
+
+        for(size_t pi = 0; pi < MVC.size(); pi++)
+        {
+            MVC[pi] = MVC[pi] / sum;
+        }
+
+        Vec3d r(0.0,0.0,0.0);
+        for(size_t pi = 0; pi < MVC.size(); pi++)
+        {
+            for(int bi = 0; bi < 3; bi++)
+            {
+                r[bi] += MVC[pi] * diff[pi * 3 + bi];
+            }
+        }
+
+        tri_mesh_vertex_R[vi] = r;
+    }
+    cout<<"Calculate mean-value coordinates done!" << endl;
+
     cout<<"Evaluating the mean-value interpolant ..." << endl;
 
     #pragma omp parallel for
@@ -608,14 +633,14 @@ void MainWindow::MVC_Compute_Optimized()
     cout<<"Total time "<<elapsed<<" ms"<<endl;
 }
 
-double MainWindow::Tan_Compute(vector2d x ,vector2d dot1,vector2d dot2)
+double MainWindow::Angle_Compute(vector2d x ,vector2d dot1,vector2d dot2)
 {
     double l,l1,l2;
     l = (dot1-dot2).Mod();
     l1 = (x-dot1).Mod();
     l2 = (x-dot2).Mod();
     double c = (l1*l1+l2*l2-l*l)/(2*l1*l2);
-    return tan(cosh(c)/2);
+    return cosh(c);
 }
 
 bool MainWindow::PointinTriangle(vector2d A,vector2d B,vector2d C,vector2d P)
@@ -711,5 +736,95 @@ void MainWindow::RasterLine(std::pair<vector2d, vector2d> line, std::vector<vect
         {
             linePointList.push_back(tmpPointList[i]);
         }
+    }
+}
+
+void MainWindow::HierarchicalBoundarySampling(std::vector<vector2d> MeshPoint,std::vector<std::vector<int>> &newROI)
+{
+    using namespace std;
+    double epsilon_dist,epsilon_ang;
+    int k = 0;
+    vector<int> tmp;
+    for(int i = 0; i < ROI.size();i+=5)
+    {
+        tmp.push_back(i);
+    }
+    newROI.push_back(tmp);
+
+    epsilon_dist = ROI.size() / 16;
+    epsilon_ang = 0.75;
+
+    cout << "Begin point check"<<endl;
+
+    while(newROI[k].size() > 16)
+    {
+        for(int i = 1;i < newROI[k].size() - 1;i++)
+        {
+            vector2d point_1 = ROI[newROI[k][i-1]];
+            vector2d point_2 = ROI[newROI[k][i]];
+            vector2d point_3 = ROI[newROI[k][i+1]];
+            bool meshpointcheck = true;
+            for(auto point:MeshPoint)
+            {
+                if((point - point_2).Mod() > epsilon_dist
+                    || Angle_Compute(point,point_2,point_1) < epsilon_ang
+                    || Angle_Compute(point,point_2,point_3) < epsilon_ang )
+                {
+                    continue;
+                }
+                meshpointcheck = false;
+            }
+            //cout << "level "<<k<<" index "<<i<<" check done! flag = " << meshpointcheck <<endl;
+            if(!meshpointcheck)
+            {
+                //cout << newROI[k].size() << " " << i  <<" ";
+                newROI[k].insert(newROI[k].begin() + i ,(newROI[k][i]+newROI[k][i - 1])/2);
+                //cout << newROI[k].size() << " "<< i + 1  <<" ";
+                newROI[k].insert(newROI[k].begin() + i + 1 ,(newROI[k][i + 1]+newROI[k][i ])/2);
+                //cout << newROI[k].size() << " "<<endl;
+                i+=2;
+            }
+            else {
+                break;
+            }
+        }
+        epsilon_dist*=0.4;
+        epsilon_ang*=0.8;
+        k++;
+        tmp.clear();
+        for(int i = 0; i < newROI[k-1].size();i+=3)
+        {
+            tmp.push_back(newROI[k-1][i]);
+        }
+        newROI.push_back(tmp);
+    }
+    cout << "Point check done!"<<endl;
+}
+
+void MainWindow::HierarchyBoundary(int index, std::vector<vector2d>& newROI, std::vector<vector2d>& MeshPoint,double dist,double ang)
+{
+    vector2d point_1 = newROI[(index - 1)%newROI.size()],point_2 = newROI[index%newROI.size()],point_3 = newROI[(index + 1)%newROI.size()];
+    int index_1 = std::find(ROI.begin(),ROI.end(),point_1) - ROI.begin();
+    int index_2 = std::find(ROI.begin(),ROI.end(),point_2) - ROI.begin();
+    int index_3 = std::find(ROI.begin(),ROI.end(),point_3) - ROI.begin();
+    bool meshpointcheck = true;
+    for(auto point:MeshPoint)
+    {
+        if((point - point_2).Mod() > dist
+            || Angle_Compute(point,point_2,point_1) < ang
+            || Angle_Compute(point,point_2,point_3) < ang )
+        {
+            continue;
+        }
+        meshpointcheck = false;
+        break;
+    }
+    if(meshpointcheck){
+        return;
+    }
+    else{
+        newROI.insert(newROI.begin() + index,ROI[(index_1 + index_2) / 2]);
+        newROI.insert(newROI.begin() + index + 2,ROI[(index_2 + index_3) / 2]);
+        HierarchyBoundary(index ,newROI, MeshPoint, dist , ang );
     }
 }

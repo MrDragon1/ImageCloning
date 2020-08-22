@@ -54,10 +54,12 @@ public:
     QImage cvMat2QImage(const cv::Mat& mat);
     void MVC_Compute();
     void MVC_Compute_Optimized();
-    double Tan_Compute(vector2d,vector2d,vector2d);
+    double Angle_Compute(vector2d,vector2d,vector2d);
     bool PointinTriangle(vector2d,vector2d,vector2d,vector2d);
     void CalBoundPoint(std::vector<vector2d>& ROIBoundPointList,std::vector<vector2d>& ROI_);
     void RasterLine(std::pair<vector2d, vector2d> line, std::vector<vector2d>& linePointList);
+    void HierarchicalBoundarySampling(std::vector<vector2d> MeshPoint,std::vector<std::vector<int>>& newROI);
+    void HierarchyBoundary(int index,std::vector<vector2d>& newROI, std::vector<vector2d>& MeshPoint,double dist,double ang);
 
 private slots:
     void on_Info_btn_clicked();
