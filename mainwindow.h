@@ -54,13 +54,16 @@ public:
     QImage cvMat2QImage(const cv::Mat& mat);
     void MVC_Compute();
     void MVC_Compute_Optimized();
+    void MVC_Compute_Optimized_HBS();
     double Angle_Compute(vector2d,vector2d,vector2d);
     bool PointinTriangle(vector2d,vector2d,vector2d,vector2d);
     void CalBoundPoint(std::vector<vector2d>& ROIBoundPointList,std::vector<vector2d>& ROI_);
     void RasterLine(std::pair<vector2d, vector2d> line, std::vector<vector2d>& linePointList);
-    void HierarchicalBoundarySampling(std::vector<vector2d> MeshPoint,std::vector<std::vector<int>>& newROI);
+    void HierarchicalBoundarySampling(vector2d point,std::vector<int>& newROI);
     void HierarchyBoundary(int index,std::vector<vector2d>& newROI, std::vector<vector2d>& MeshPoint,double dist,double ang);
-
+    bool Point_In_Polygon_2D(double x, double y, const std::vector<vector2d> &POL);
+    bool IsIntersect(double px1, double py1, double px2, double py2, double px3, double py3, double px4, double py4);
+    bool IsPointOnLine(double px0, double py0, double px1, double py1, double px2, double py2);
 private slots:
     void on_Info_btn_clicked();
 
@@ -82,6 +85,7 @@ private:
     QPoint startpoint,endpoint;//画笔功能所需变量
     std::vector<cv::Point> line; //存储画笔所选区域
     std::vector<vector2d> ROI;
+    std::vector<vector2d> ROIBoundList;
     std::vector<std::vector<bool>> map;//存储图像选择的区域
     cv::Mat src_mat,tar_mat,res_mat,tar_mat_copy,src_mat_copy;//Mat类型图片
     QPoint srcpoint,tarpoint,relative_position;//原图片和目标图片位置，光标与图片的相对位置
